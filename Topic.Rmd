@@ -1,0 +1,61 @@
+---
+title: "Untitled"
+author: "Weixiao Li"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+IMDB.Dataset <- read.csv("D:/615 HW1/IMDB Dataset.csv")
+IMDB <- tibble(IMDB)
+IMDB <- IMDB  %>%  mutate(docs = c(1:length(IMDB$review)))
+data(stop_words)
+stop_words <- rbind(stop_words,c("br","Smart"))
+```
+
+```{r}
+book_words <- IMDB %>%
+  unnest_tokens(word, review) %>%
+  anti_join(stop_words)%>%
+  count(docs, word, sort = TRUE)
+
+book_words$docs <- as.character(book_words$docs)
+book_words <- tibble(book_words)
+
+IMDB_dtm <- book_words %>%
+  cast_dtm(docs, word, n)
+
+IMDB_dtm
+
+IMDB_lda <- LDA(IMDB_dtm, k = 12 , control = list(seed = 1234))
+IMDB_lda
+```
+
+```{r}
+library(tidytext)
+library(reshape2)
+ap_topics <- tidy(IMDB_lda, matrix = "beta")
+ap_topics
+
+library(ggplot2)
+library(dplyr)
+
+ap_top_terms <- ap_topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 10) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+ap_top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()
+
+```
+
